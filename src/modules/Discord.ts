@@ -1,7 +1,14 @@
 import {
+  AudioPlayer,
+  AudioPlayerStatus,
+  AudioResource,
+  createAudioPlayer,
+  createAudioResource,
   CreateVoiceConnectionOptions,
+  demuxProbe,
   joinVoiceChannel,
   JoinVoiceChannelOptions,
+  StreamType,
   VoiceConnection,
 } from "@discordjs/voice";
 import DiscordJS, {
@@ -13,6 +20,7 @@ import DiscordJS, {
   GuildApplicationCommandManager,
   Interaction,
 } from "discord.js";
+import ytdl from "ytdl-core";
 import { IDiscord } from "../interfaces/Discord";
 import { commandCreationResponse, event } from "../types/Discord";
 
@@ -23,6 +31,8 @@ export class Discord implements IDiscord {
     | GuildApplicationCommandManager
     | ApplicationCommandManager
     | undefined;
+  player: AudioPlayer;
+  queue: string[];
 
   constructor(
     options: ClientOptions,
@@ -32,9 +42,24 @@ export class Discord implements IDiscord {
     ]
   ) {
     this.client = new DiscordJS.Client(options);
+    this.player = createAudioPlayer();
+    this.queue = [];
+    this.definePlayer();
 
-    if (!!guildId) this.createCommandsAsGuild(commands, guildId);
-    else this.createGlobalCommands(commands);
+    this.client.on("ready", async () => {
+      if (!!guildId) this.createCommandsAsGuild(commands, guildId);
+      else this.createGlobalCommands(commands);
+    });
+  }
+
+  private definePlayer() {
+    this.player.on("error", (error) => {
+      console.log(error);
+    });
+
+    this.player.on(AudioPlayerStatus.Idle, async () => {
+      this.playFromQueue();
+    });
   }
 
   private async createCommands(
@@ -64,10 +89,10 @@ export class Discord implements IDiscord {
   private createGlobalCommands(
     commands: DiscordJS.ApplicationCommandDataResolvable[]
   ): void {
-    this.on("ready", async () => {
-      this.commands = this.client.application?.commands;
+    this.commands = this.client.application?.commands;
 
-      console.log(await this.createCommands(commands));
+    this.createCommands(commands).then((data) => {
+      console.log(JSON.stringify(data, null, 2));
     });
   }
 
@@ -75,16 +100,16 @@ export class Discord implements IDiscord {
     commands: ApplicationCommandDataResolvable[],
     guildId: string
   ): void {
-    this.on("ready", async () => {
-      console.log("Bot is ready");
+    console.log("Bot is ready");
 
-      this.guild = this.client.guilds.cache.get(guildId);
+    this.guild = this.client.guilds.cache.get(guildId);
 
-      if (!this.guild) throw { error: "Guild doesn't exist. Stopping." };
+    if (!this.guild) throw { error: "Guild doesn't exist. Stopping." };
 
-      this.commands = this.guild.commands;
+    this.commands = this.guild.commands;
 
-      console.log(await this.createCommands(commands));
+    this.createCommands(commands).then((data) => {
+      console.log(data);
     });
   }
 
@@ -118,7 +143,40 @@ export class Discord implements IDiscord {
 
   joinVoiceChannel(
     options: JoinVoiceChannelOptions & CreateVoiceConnectionOptions
-  ): VoiceConnection {
-    return joinVoiceChannel(options);
+  ): void {
+    const connection = joinVoiceChannel(options);
+    connection.subscribe(this.player);
+  }
+
+  private async probeAndCreateResource(readableStream: any) {
+    const { stream, type: inputType } = await demuxProbe(readableStream);
+    return createAudioResource(stream, { inputType });
+  }
+
+  playResource(stream: any): void {
+    this.probeAndCreateResource(stream).then((data) => {
+      this.player.play(data);
+    });
+  }
+
+  async playFromQueue(): Promise<void> {
+    let lastUrl = this.queue.pop();
+
+    if (!lastUrl) return;
+
+    let stream = await ytdl(lastUrl, {
+      filter: "audioonly",
+      highWaterMark: 1 << 25,
+    });
+
+    this.playResource(stream);
+  }
+
+  addToQueue(url: string): void {
+    this.queue.push(url);
+
+    if (this.player.state.status === AudioPlayerStatus.Idle) {
+      this.playFromQueue();
+    }
   }
 }
