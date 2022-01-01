@@ -129,10 +129,12 @@ export class Discord implements IDiscord {
   getRequesterVoiceChannel(interaction: Interaction): string {
     if (!interaction.guildId) throw new Error("Guild id is null");
     if (!interaction.member) throw new Error("Requester is null");
-    if (!this.guild) throw new Error("No guild to get info from");
+    if (!interaction.guild) throw new Error("No guild to get info from");
 
     const guild = this.client.guilds.cache.get(interaction.guildId);
-    const member = this.guild.members.cache.get(interaction.member.user.id);
+    const member = interaction.guild.members.cache.get(
+      interaction.member.user.id
+    );
 
     if (!member) throw new Error("Member doesn't exist");
     if (!member.voice.channel)
