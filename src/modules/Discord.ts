@@ -1,15 +1,14 @@
 import {
   AudioPlayer,
   AudioPlayerStatus,
-  AudioResource,
   createAudioPlayer,
   createAudioResource,
   CreateVoiceConnectionOptions,
   demuxProbe,
   joinVoiceChannel,
   JoinVoiceChannelOptions,
-  StreamType,
   VoiceConnection,
+  VoiceConnectionStatus,
 } from "@discordjs/voice";
 import DiscordJS, {
   ApplicationCommandDataResolvable,
@@ -148,6 +147,14 @@ export class Discord implements IDiscord {
   ): void {
     const connection = joinVoiceChannel(options);
     connection.subscribe(this.player);
+
+    connection.on(
+      VoiceConnectionStatus.Disconnected,
+      async (oldState, newState) => {
+        this.queue = [];
+        this.player.stop();
+      }
+    );
   }
 
   private async probeAndCreateResource(readableStream: any) {
