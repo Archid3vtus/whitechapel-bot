@@ -169,7 +169,7 @@ export class Discord implements IDiscord {
   }
 
   async playFromQueue(): Promise<void> {
-    let lastUrl = this.queue.pop();
+    let lastUrl = this.queue.shift();
 
     if (!lastUrl) return;
 
@@ -186,6 +186,21 @@ export class Discord implements IDiscord {
 
     if (this.player.state.status === AudioPlayerStatus.Idle) {
       this.playFromQueue();
+    }
+  }
+
+  stop(): void {
+    this.queue = [];
+    this.player.stop();
+  }
+
+  skip(): string {
+    this.player.stop();
+    if (this.queue.length > 0) {
+      //this.playFromQueue();
+      return "Playing next song";
+    } else {
+      return "Nothing in the queue. Stopping.";
     }
   }
 }

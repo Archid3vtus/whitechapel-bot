@@ -20,6 +20,15 @@ const discord = new Discord(
       name: "play",
       description: "Plays a random Whitechapel song.",
     },
+    {
+      name: "stop",
+      description: "Clear the queue and stops playing.",
+    },
+    {
+      name: "skip",
+      description:
+        "Goes to the next song, if any. Stops if there are no songs in queue.",
+    },
   ]
 );
 
@@ -30,16 +39,51 @@ discord.on("interactionCreate", async (interaction) => {
 
   const { commandName, options } = interaction;
 
-  if (commandName === "hello")
-    interaction.reply({
-      content: "world",
-    });
+  if (commandName === "skip") {
+    try {
+      await interaction.deferReply();
+
+      if (!interaction.guild) throw new Error("You're not in a server!");
+
+      let content = discord.skip();
+
+      interaction.editReply({
+        content,
+      });
+    } catch (e) {
+      console.log(e);
+
+      interaction.editReply({
+        content: "Something gone wrong. Ask the administrator for logs!",
+      });
+    }
+  }
+
+  if (commandName === "stop") {
+    try {
+      await interaction.deferReply();
+
+      if (!interaction.guild) throw new Error("You're not in a server!");
+
+      discord.stop();
+
+      interaction.editReply({
+        content: "Stopping.",
+      });
+    } catch (e) {
+      console.log(e);
+
+      interaction.editReply({
+        content: "Something gone wrong. Ask the administrator for logs!",
+      });
+    }
+  }
 
   if (commandName === "play") {
     try {
-      if (!interaction.guild) throw new Error("You're not in a server!");
-
       await interaction.deferReply();
+
+      if (!interaction.guild) throw new Error("You're not in a server!");
 
       const channelId = discord.getRequesterVoiceChannel(interaction);
       const { id: guildId } = interaction.guild;
@@ -73,12 +117,55 @@ discord.on("interactionCreate", async (interaction) => {
 const randomIntFromInterval = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1) + min);
 
+function filterFromBannedWords(
+  videoList: ytsr.Item[],
+  bannedWords: string[],
+  startsWith: string
+) {
+  let response = videoList.filter(({ type }) => {
+    return type === "video";
+  }) as ytsr.Video[];
+
+  response = response.filter(({ title }) => {
+    return title.toLowerCase().startsWith(startsWith);
+  });
+
+  response = response.filter(({ title }) => {
+    let isClear = true;
+
+    for (let word of bannedWords) {
+      if (title.toLowerCase().includes(word)) {
+        isClear = false;
+        break;
+      }
+    }
+
+    return isClear;
+  });
+
+  return response;
+}
+
 async function getRandomSongFrom(searchQuery: string): Promise<any> {
   let { items } = await ytsr(searchQuery);
 
-  items = items.filter((item) => {
-    return item.type === "video";
-  });
+  items = filterFromBannedWords(
+    items,
+    [
+      "interview",
+      "full album",
+      "[",
+      "]",
+      "cover",
+      "playthrough",
+      "reaction",
+      "live",
+    ],
+    `${searchQuery} -`
+  );
 
-  return items[randomIntFromInterval(0, items.length)];
+  const response = items[randomIntFromInterval(0, items.length)];
+  console.log(response);
+
+  return response;
 }

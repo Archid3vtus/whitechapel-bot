@@ -1,12 +1,9 @@
 import {
   AudioPlayer,
-  AudioResource,
   CreateVoiceConnectionOptions,
   JoinVoiceChannelOptions,
-  VoiceConnection,
 } from "@discordjs/voice";
-import DiscordJS, {
-  ApplicationCommandDataResolvable,
+import {
   ApplicationCommandManager,
   Awaitable,
   Client,
@@ -14,7 +11,6 @@ import DiscordJS, {
   Guild,
   GuildApplicationCommandManager,
   Interaction,
-  VoiceBasedChannel,
 } from "discord.js";
 import { event } from "../types/Discord";
 
@@ -39,4 +35,6 @@ export interface IDiscord {
   playResource(stream: any): void;
   playFromQueue(): void;
   addToQueue(url: string): void;
+  stop(): void;
+  skip(): string;
 }
