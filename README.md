@@ -5,4 +5,8 @@ A Bot exclusively made to play only Whitecapel songs.
 
 ## How to use
 
-Simply use the `/play` command while being in a voice channel and it'll get a random Whitechapel song from YouTube
+You'll have the following commands with The Whitechapel Bot:
+
+- `/play` which will get a random song from YouTube and queue it
+- `/stop` clears the queue and stop playing
+- `/skip` skips to the next song. Will stop playing if there are no songs in the queue
